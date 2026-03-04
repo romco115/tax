@@ -1,0 +1,76 @@
+{
+  "_comment": "W-7 (Rev. December 2024) field ID mappings. All fields are on Page1.",
+  "_prefix": "topmostSubform[0].Page1[0].",
+
+  "apply_new_itin":       "c1_1[0]",
+  "renew_itin":           "c1_1[1]",
+
+  "reason_a":             "c1_2[0]",
+  "reason_b":             "c1_3[0]",
+  "reason_c":             "c1_4[0]",
+  "reason_d":             "c1_5[0]",
+  "reason_e":             "c1_6[0]",
+  "reason_f":             "c1_7[0]",
+  "reason_g":             "c1_8[0]",
+  "reason_h":             "c1_9[0]",
+
+  "reason_d_relationship": "f1_01[0]",
+  "reason_de_name_mi":    "f1_02[0]",
+  "reason_de_name":       "f1_03[0]",
+  "reason_h_description": "f1_04[0]",
+  "treaty_country":       "f1_05[0]",
+  "treaty_article":       "f1_06[0]",
+
+  "first_name":           "f1_07[0]",
+  "middle_name":          "f1_08[0]",
+  "last_name":            "f1_09[0]",
+  "birth_first_name":     "f1_10[0]",
+  "birth_middle_name":    "f1_11[0]",
+  "birth_last_name":      "f1_12[0]",
+
+  "mailing_street":       "f1_13[0]",
+  "mailing_city_country": "f1_14[0]",
+  "foreign_street":       "f1_15[0]",
+  "foreign_city_country": "f1_16[0]",
+
+  "dob":                  "Line4_ReadOrder[0].f1_17[0]",
+  "country_of_birth":     "f1_18[0]",
+  "city_of_birth":        "f1_19[0]",
+  "sex_male":             "c1_10[0]",
+  "sex_female":           "c1_10[1]",
+
+  "country_citizenship":  "f1_20[0]",
+  "foreign_tin":          "f1_21[0]",
+  "visa_type":            "f1_22[0]",
+
+  "doc_passport":         "c1_11[0]",
+  "doc_driver_license":   "c1_11[1]",
+  "doc_uscis":            "c1_11[2]",
+  "doc_other_cb":         "c1_11[3]",
+  "doc_other_desc":       "f1_23[0]",
+
+  "doc_issued_by":        "Issued_ReadOrder[0].f1_24[0]",
+  "doc_number":           "Issued_ReadOrder[0].f1_25[0]",
+  "doc_expiry":           "Issued_ReadOrder[0].f1_26[0]",
+  "us_entry_date":        "f1_27[0]",
+
+  "prev_tin_no":          "c1_12[0]",
+  "prev_tin_yes":         "c1_12[1]",
+
+  "itin_1":               "ITIN[0].f1_28[0]",
+  "itin_2":               "ITIN[0].f1_29[0]",
+  "itin_3":               "ITIN[0].f1_30[0]",
+  "irsn_1":               "IRSN[0].f1_31[0]",
+  "irsn_2":               "IRSN[0].f1_32[0]",
+  "irsn_3":               "IRSN[0].f1_33[0]",
+
+  "prev_name_first":      "f1_34[0]",
+  "prev_name_middle":     "f1_35[0]",
+  "prev_name_last":       "f1_36[0]",
+
+  "school_employer_name": "f1_37[0]",
+  "school_city_state":    "f1_38[0]",
+  "length_of_stay":       "f1_39[0]",
+
+  "applicant_phone":      "f1_40[0]"
+}

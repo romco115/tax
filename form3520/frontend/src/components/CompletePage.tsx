@@ -2,6 +2,7 @@ interface CompletePageProps {
   pdfBlob: Blob;
   sessionWarnings: string[];
   onRestart: () => void;
+  formLabel?: string;
 }
 
 function downloadBlob(blob: Blob, filename: string) {
@@ -13,7 +14,7 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-const CompletePage: React.FC<CompletePageProps> = ({ pdfBlob, sessionWarnings, onRestart }) => {
+const CompletePage: React.FC<CompletePageProps> = ({ pdfBlob, sessionWarnings, onRestart, formLabel = "Form 3520" }) => {
   const uniqueWarnings = [...new Set(sessionWarnings)];
 
   return (
@@ -30,7 +31,7 @@ const CompletePage: React.FC<CompletePageProps> = ({ pdfBlob, sessionWarnings, o
           </div>
         </div>
 
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Form 3520 Generated!</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">{formLabel} Generated!</h2>
         <p className="text-gray-500 text-sm mb-7 leading-relaxed">
           Your completed PDF has been downloaded automatically.
           Check your <strong className="text-gray-700">Downloads</strong> folder.
@@ -83,7 +84,7 @@ const CompletePage: React.FC<CompletePageProps> = ({ pdfBlob, sessionWarnings, o
         onClick={onRestart}
         className="text-sm text-gray-400 hover:text-blue-600 transition-colors animate-fade-up"
       >
-        Start a new Form 3520
+        Start a new {formLabel}
       </button>
     </div>
   );

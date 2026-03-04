@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 interface ProgressBarProps {
   current: number;
   total: number;
@@ -18,8 +20,18 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ current, total, partLabel }) 
       </div>
 
       <div className="max-w-2xl mx-auto px-4 h-11 flex items-center justify-between gap-4">
-        {/* Left: logo + section label */}
-        <div className="flex items-center gap-2.5 min-w-0">
+        {/* Left: home link + logo + section label */}
+        <div className="flex items-center gap-2 min-w-0">
+          <Link
+            to="/"
+            className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0 mr-1"
+            title="Back to home"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="hidden sm:inline">Home</span>
+          </Link>
           <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center flex-shrink-0 shadow-sm">
             <span className="text-white text-[8px] font-black tracking-tighter leading-none">IRS</span>
           </div>
