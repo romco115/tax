@@ -11,11 +11,11 @@ interface QuestionCardProps {
   isFirst: boolean;
 }
 
-const LABEL_CLS = "block text-sm font-medium text-gray-700 mb-1";
 const INPUT_CLS =
-  "w-full h-11 px-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900";
+  "w-full h-12 px-4 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 text-gray-900 placeholder-gray-400 transition-all duration-150 text-[15px]";
 const SELECT_CLS =
-  "w-full h-11 px-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white";
+  "w-full h-12 px-4 pr-10 border border-gray-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 text-gray-900 transition-all duration-150 text-[15px] appearance-none cursor-pointer";
+const LABEL_CLS = "block text-sm font-medium text-gray-500 mb-1.5";
 
 function formatCurrencyDisplay(raw: number | string | undefined): string {
   if (raw === undefined || raw === "" || raw === null) return "";
@@ -31,18 +31,6 @@ function parseCurrencyInput(s: string): number | "" {
   return isNaN(n) ? "" : n;
 }
 
-function isoToDisplay(iso: string): string {
-  if (!iso) return "";
-  const [y, m, d] = iso.split("-");
-  return `${m}/${d}/${y}`;
-}
-
-function displayToIso(display: string): string {
-  const parts = display.split("/");
-  if (parts.length !== 3) return display;
-  const [m, d, y] = parts;
-  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-}
 
 interface SingleFieldProps {
   fieldDef: Pick<QuestionDefinition, "type" | "options">;
@@ -55,31 +43,31 @@ function SingleInput({ fieldDef, value, onChange, id }: SingleFieldProps) {
   const [currencyDisplay, setCurrencyDisplay] = useState<string>(
     fieldDef.type === "currency" ? formatCurrencyDisplay(value as number) : ""
   );
-  const [dateDisplay, setDateDisplay] = useState<string>(
-    fieldDef.type === "date" ? isoToDisplay(String(value ?? "")) : ""
-  );
 
   if (fieldDef.type === "yesno") {
     const current = value as string | undefined;
     return (
-      <div className="flex gap-4">
-        {["yes", "no"].map((opt) => (
-          <label
+      <div className="flex gap-3">
+        {(["yes", "no"] as const).map((opt) => (
+          <button
             key={opt}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg border cursor-pointer transition-colors ${
+            type="button"
+            onClick={() => onChange(opt)}
+            className={`flex-1 py-4 px-5 rounded-xl border-2 font-semibold text-base flex items-center justify-center gap-2.5 cursor-pointer transition-all duration-150 select-none ${
               current === opt
-                ? "border-blue-600 bg-blue-50 text-blue-700 font-medium"
-                : "border-gray-300 hover:border-blue-400 text-gray-700"
+                ? opt === "yes"
+                  ? "border-blue-600 bg-blue-600 text-white shadow-lg shadow-blue-200/60"
+                  : "border-gray-800 bg-gray-900 text-white shadow-lg shadow-gray-300/40"
+                : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50 active:scale-[0.97]"
             }`}
           >
-            <input
-              type="radio"
-              className="sr-only"
-              checked={current === opt}
-              onChange={() => onChange(opt)}
-            />
+            {current === opt && (
+              <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            )}
             {opt === "yes" ? "Yes" : "No"}
-          </label>
+          </button>
         ))}
       </div>
     );
@@ -87,30 +75,35 @@ function SingleInput({ fieldDef, value, onChange, id }: SingleFieldProps) {
 
   if (fieldDef.type === "select") {
     return (
-      <select
-        id={id}
-        className={SELECT_CLS}
-        value={String(value ?? "")}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        <option value="">— Select —</option>
-        {(fieldDef.options ?? []).map((opt) => (
-          <option key={opt} value={opt}>
-            {opt}
-          </option>
-        ))}
-      </select>
+      <div className="relative">
+        <select
+          id={id}
+          className={SELECT_CLS}
+          value={String(value ?? "")}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          <option value="">— Select —</option>
+          {(fieldDef.options ?? []).map((opt) => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+      </div>
     );
   }
 
   if (fieldDef.type === "currency") {
     return (
       <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-medium pointer-events-none">$</span>
         <input
           id={id}
           type="text"
-          className={`${INPUT_CLS} pl-7`}
+          className={`${INPUT_CLS} pl-8`}
           value={currencyDisplay}
           onChange={(e) => {
             setCurrencyDisplay(e.target.value);
@@ -119,9 +112,7 @@ function SingleInput({ fieldDef, value, onChange, id }: SingleFieldProps) {
           }}
           onBlur={() => {
             const n = parseCurrencyInput(currencyDisplay);
-            if (n !== "") {
-              setCurrencyDisplay(formatCurrencyDisplay(n));
-            }
+            if (n !== "") setCurrencyDisplay(formatCurrencyDisplay(n));
           }}
           placeholder="0.00"
           inputMode="decimal"
@@ -134,24 +125,10 @@ function SingleInput({ fieldDef, value, onChange, id }: SingleFieldProps) {
     return (
       <input
         id={id}
-        type="text"
+        type="date"
         className={INPUT_CLS}
-        value={dateDisplay}
-        placeholder="MM/DD/YYYY"
-        onChange={(e) => {
-          setDateDisplay(e.target.value);
-          if (e.target.value.length === 10) {
-            onChange(displayToIso(e.target.value));
-          }
-        }}
-        onBlur={() => {
-          const iso = displayToIso(dateDisplay);
-          if (iso !== dateDisplay) {
-            setDateDisplay(isoToDisplay(iso));
-            onChange(iso);
-          }
-        }}
-        maxLength={10}
+        value={String(value ?? "")}
+        onChange={(e) => onChange(e.target.value)}
       />
     );
   }
@@ -179,6 +156,61 @@ function SingleInput({ fieldDef, value, onChange, id }: SingleFieldProps) {
   );
 }
 
+function parseCityStateZip(combined: string): { city: string; state: string; zip: string } {
+  const match = combined.match(/^(.*),\s*([A-Za-z]{2})\s+(\S+)$/);
+  if (match) return { city: match[1].trim(), state: match[2], zip: match[3] };
+  return { city: combined, state: "", zip: "" };
+}
+
+function CityStateZipInput({ value, onChange }: { value: unknown; onChange: (v: unknown) => void }) {
+  const parsed = parseCityStateZip(String(value ?? ""));
+  const [city, setCity] = useState(parsed.city);
+  const [st, setSt] = useState(parsed.state);
+  const [zip, setZip] = useState(parsed.zip);
+
+  const emit = (c: string, s: string, z: string) => {
+    onChange(c || s || z ? `${c}, ${s} ${z}` : "");
+  };
+
+  return (
+    <div className="grid grid-cols-5 gap-3">
+      <div className="col-span-3">
+        <label className={LABEL_CLS}>City</label>
+        <input
+          type="text"
+          className={INPUT_CLS}
+          value={city}
+          placeholder="San Francisco"
+          onChange={(e) => { setCity(e.target.value); emit(e.target.value, st, zip); }}
+        />
+      </div>
+      <div className="col-span-1">
+        <label className={LABEL_CLS}>State</label>
+        <input
+          type="text"
+          className={INPUT_CLS}
+          value={st}
+          placeholder="CA"
+          maxLength={2}
+          onChange={(e) => { const v = e.target.value.toUpperCase(); setSt(v); emit(city, v, zip); }}
+        />
+      </div>
+      <div className="col-span-1">
+        <label className={LABEL_CLS}>ZIP</label>
+        <input
+          type="text"
+          className={INPUT_CLS}
+          value={zip}
+          placeholder="94105"
+          maxLength={10}
+          inputMode="numeric"
+          onChange={(e) => { setZip(e.target.value); emit(city, st, e.target.value); }}
+        />
+      </div>
+    </div>
+  );
+}
+
 type RepeatingEntry = Record<string, unknown>;
 
 interface RepeatingGroupProps {
@@ -202,16 +234,18 @@ function RepeatingGroup({ fields, value, onChange }: RepeatingGroupProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {entries.map((entry, idx) => (
-        <div key={idx} className="border border-gray-200 rounded-xl p-5 space-y-4 bg-gray-50">
+        <div key={idx} className="border border-gray-200 rounded-xl p-5 space-y-4 bg-gray-50/60">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-gray-700">Entry {idx + 1}</span>
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Entry {idx + 1}
+            </span>
             {entries.length > 1 && (
               <button
                 type="button"
                 onClick={() => removeEntry(idx)}
-                className="text-red-500 hover:text-red-700 text-sm font-medium"
+                className="text-red-400 hover:text-red-600 text-xs font-medium transition-colors"
               >
                 Remove
               </button>
@@ -221,7 +255,7 @@ function RepeatingGroup({ fields, value, onChange }: RepeatingGroupProps) {
             <div key={f.id}>
               <label className={LABEL_CLS}>
                 {f.label}
-                {f.required && <span className="text-red-500 ml-0.5">*</span>}
+                {f.required && <span className="text-red-400 ml-0.5">*</span>}
               </label>
               <SingleInput
                 fieldDef={f}
@@ -235,13 +269,25 @@ function RepeatingGroup({ fields, value, onChange }: RepeatingGroupProps) {
       <button
         type="button"
         onClick={addEntry}
-        className="text-blue-600 hover:text-blue-800 text-sm font-medium border border-blue-300 px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors"
+        className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 text-sm font-medium border border-blue-200 hover:border-blue-300 px-4 py-2 rounded-lg hover:bg-blue-50 transition-all duration-150"
       >
-        + Add another entry
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+        Add another entry
       </button>
     </div>
   );
 }
+
+const PART_BADGES: Record<string, string> = {
+  identification: "Your Information",
+  routing: "About Your Situation",
+  I: "Part I",
+  II: "Part II",
+  III: "Part III",
+  IV: "Part IV",
+};
 
 const QuestionCard: React.FC<QuestionCardProps> = ({
   question,
@@ -255,7 +301,6 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   const [warnings, setWarnings] = useState<string[]>([]);
   const [validating, setValidating] = useState(false);
 
-  // Clear errors when navigating to a new question
   useEffect(() => {
     setErrors([]);
     setWarnings([]);
@@ -276,81 +321,142 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
     }
   }, [question.id, question.type, value]);
 
-  const handleNext = async () => {
+  const handleNext = useCallback(async () => {
     const ok = await validate();
     if (ok) onNext();
-  };
+  }, [validate, onNext]);
+
+  // Enter key → advance (except for repeating groups)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== "Enter") return;
+      if (question.type === "repeating") return;
+      const target = e.target as HTMLElement;
+      if (target.tagName === "TEXTAREA") return;
+      e.preventDefault();
+      void handleNext();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [question.type, handleNext]);
+
+  const partBadge = PART_BADGES[question.part] ?? `Part ${question.part}`;
 
   return (
-    <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-md p-8 transition-all duration-300">
-      <div className="mb-6">
-        <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-2">
-          {question.part === "identification"
-            ? "Your Information"
-            : question.part === "routing"
-              ? "About Your Situation"
-              : `Part ${question.part}`}
-        </p>
-        <h2 className="text-xl font-semibold text-gray-900 leading-snug">{question.label}</h2>
-        {question.help_text && (
-          <p className="text-sm text-gray-500 mt-2">{question.help_text}</p>
-        )}
-      </div>
+    <div className="max-w-2xl mx-auto">
+      <div className="bg-white rounded-2xl shadow-lg ring-1 ring-gray-100 overflow-hidden">
+        {/* Top accent bar */}
+        <div className="h-1" style={{ background: "linear-gradient(90deg, #3b82f6, #6366f1)" }} />
 
-      <div className="mb-6">
-        {question.type === "repeating" ? (
-          <RepeatingGroup
-            fields={question.fields ?? []}
-            value={Array.isArray(value) ? (value as RepeatingEntry[]) : []}
-            onChange={onChange}
-          />
-        ) : (
-          <SingleInput
-            fieldDef={question}
-            value={value}
-            onChange={onChange}
-            id={question.id}
-          />
-        )}
-      </div>
+        <div className="p-8 sm:p-10">
+          {/* Part badge */}
+          <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-4">
+            {partBadge}
+          </p>
 
-      {errors.length > 0 && (
-        <div className="mb-4 space-y-1">
-          {errors.map((e, i) => (
-            <p key={i} className="text-red-600 text-sm">
-              {e}
-            </p>
-          ))}
+          {/* Question text */}
+          <h2 className="text-[22px] font-semibold text-gray-900 leading-snug mb-2">
+            {question.label}
+          </h2>
+          {question.help_text && (
+            <p className="text-sm text-gray-500 leading-relaxed mb-7">{question.help_text}</p>
+          )}
+          {!question.help_text && <div className="mb-6" />}
+
+          {/* Input */}
+          <div className="mb-6">
+            {question.id === "taxpayer_city_state_zip" ? (
+              <CityStateZipInput value={value} onChange={onChange} />
+            ) : question.type === "repeating" ? (
+              <RepeatingGroup
+                fields={question.fields ?? []}
+                value={Array.isArray(value) ? (value as RepeatingEntry[]) : []}
+                onChange={onChange}
+              />
+            ) : (
+              <SingleInput
+                fieldDef={question}
+                value={value}
+                onChange={onChange}
+                id={question.id}
+              />
+            )}
+          </div>
+
+          {/* Errors */}
+          {errors.length > 0 && (
+            <div className="mb-4 flex items-start gap-2.5 bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+              <svg className="w-4 h-4 mt-0.5 flex-shrink-0 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <div className="space-y-0.5">
+                {errors.map((e, i) => <p key={i} className="text-sm text-red-600">{e}</p>)}
+              </div>
+            </div>
+          )}
+
+          {/* Warnings */}
+          {warnings.length > 0 && (
+            <div className="mb-4 flex items-start gap-2.5 bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
+              <svg className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-500" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <div className="space-y-0.5">
+                {warnings.map((w, i) => <p key={i} className="text-sm text-amber-700">{w}</p>)}
+              </div>
+            </div>
+          )}
+
+          {/* Navigation */}
+          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={onBack}
+              disabled={isFirst}
+              className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${
+                isFirst ? "invisible" : "text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back
+            </button>
+
+            <div className="flex items-center gap-3">
+              {question.type !== "repeating" && (
+                <span className="text-xs text-gray-300 hidden sm:block select-none">Enter ↵</span>
+              )}
+              <button
+                type="button"
+                onClick={() => { void handleNext(); }}
+                disabled={validating}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150 ${
+                  validating
+                    ? "bg-blue-300 text-white cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700 active:scale-[0.97] text-white shadow-sm hover:shadow-md"
+                }`}
+              >
+                {validating ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    Checking…
+                  </>
+                ) : (
+                  <>
+                    Next
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
-      )}
-
-      {warnings.length > 0 && (
-        <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 space-y-1">
-          {warnings.map((w, i) => (
-            <p key={i} className="text-yellow-700 text-sm">
-              {w}
-            </p>
-          ))}
-        </div>
-      )}
-
-      <div className="flex items-center justify-between pt-2">
-        <button
-          type="button"
-          onClick={onBack}
-          disabled={isFirst}
-          className={`text-blue-600 hover:underline text-sm ${isFirst ? "invisible" : ""}`}
-        >
-          ← Back
-        </button>
-        <button
-          type="button"
-          onClick={handleNext}
-          disabled={validating}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium px-6 py-2.5 rounded-lg transition-colors"
-        >
-          {validating ? "Checking..." : "Next →"}
-        </button>
       </div>
     </div>
   );

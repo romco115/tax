@@ -15,9 +15,9 @@ def validate_field(field: str, value: Any) -> dict:
     warnings: list[str] = []
 
     if field == "taxpayer_tin":
-        if not re.match(r"^\d{3}-\d{2}-\d{4}$|^\d{2}-\d{7}$", str(value or "")):
+        if not re.match(r"^\d{3}-\d{2}-\d{4}$|^\d{2}-\d{7}$|^\d{9}$", str(value or "")):
             errors.append(
-                "Enter a valid SSN (XXX-XX-XXXX) or EIN (XX-XXXXXXX)."
+                "Enter a valid SSN (XXX-XX-XXXX), EIN (XX-XXXXXXX), or 9 digits without dashes."
             )
 
     elif field == "tax_year":

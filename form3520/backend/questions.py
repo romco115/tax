@@ -55,7 +55,7 @@ QUESTIONS: list[dict] = [
         "help_text": "SSN format: XXX-XX-XXXX. EIN format: XX-XXXXXXX.",
         "type": "text",
         "required": True,
-        "validation": {"pattern": r"^\d{3}-\d{2}-\d{4}$|^\d{2}-\d{7}$"},
+        "validation": {"pattern": r"^\d{3}-\d{2}-\d{4}$|^\d{2}-\d{7}$|^\d{9}$"},
         "triggers_part": None,
     },
     {

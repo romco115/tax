@@ -17,6 +17,7 @@ import ReviewSummary from "./ReviewSummary";
 import CompletePage from "./CompletePage";
 
 type Phase = "loading" | "error" | "interview" | "part-router" | "review" | "complete";
+type Direction = "forward" | "backward";
 
 const PART_LABELS: Record<string, string> = {
   identification: "Your Information",
@@ -80,6 +81,7 @@ const Interview: React.FC = () => {
     part_iv: false,
   });
   const [stepIndex, setStepIndex] = useState<number>(0);
+  const [direction, setDirection] = useState<Direction>("forward");
   const [sessionWarnings, setSessionWarnings] = useState<string[]>([]);
   const [phase, setPhase] = useState<Phase>("loading");
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
@@ -96,7 +98,6 @@ const Interview: React.FC = () => {
       .catch(() => setPhase("error"));
   }, []);
 
-  // Active question list = identification + routing + applicable Part questions
   const activeQuestions = allQuestions.filter((q) => {
     if (q.part === "identification" || q.part === "routing") return true;
     if (q.part === "I") return partsApplicable.part_i;
@@ -119,7 +120,6 @@ const Interview: React.FC = () => {
       const newAnswers = { ...answers, [currentQuestion.id]: value };
       setAnswers(newAnswers);
 
-      // Update parts applicable from routing answers
       if (currentQuestion.part === "routing" && currentQuestion.triggers_part) {
         const triggered = value === "yes";
         setPartsApplicable((prev) => {
@@ -128,7 +128,6 @@ const Interview: React.FC = () => {
         });
       }
 
-      // Collect warnings from validate
       if (currentQuestion.type !== "repeating") {
         api
           .validate(currentQuestion.id, value)
@@ -148,28 +147,34 @@ const Interview: React.FC = () => {
     const isLastStep = stepIndex >= activeQuestions.length - 1;
 
     if (isLastRouting && lastRoutingIdx >= 0) {
+      setDirection("forward");
       setPhase("part-router");
       return;
     }
 
     if (isLastStep) {
+      setDirection("forward");
       setPhase("review");
       return;
     }
 
+    setDirection("forward");
     setStepIndex((i) => i + 1);
   }, [stepIndex, lastRoutingIdx, activeQuestions.length]);
 
   const handleBack = useCallback(() => {
-    if (stepIndex > 0) setStepIndex((i) => i - 1);
+    if (stepIndex > 0) {
+      setDirection("backward");
+      setStepIndex((i) => i - 1);
+    }
   }, [stepIndex]);
 
   const handlePartRouterBegin = useCallback(() => {
-    // Jump to first Part question after routing
     const firstPartIdx = activeQuestions.findIndex((q) =>
       ["I", "II", "III", "IV"].includes(q.part),
     );
     if (firstPartIdx >= 0) {
+      setDirection("forward");
       setStepIndex(firstPartIdx);
       setPhase("interview");
     } else {
@@ -188,6 +193,7 @@ const Interview: React.FC = () => {
 
       const idx = activeQuestions.findIndex((q) => q.part === targetPart);
       if (idx >= 0) {
+        setDirection("backward");
         setStepIndex(idx);
         setPhase("interview");
       }
@@ -203,11 +209,13 @@ const Interview: React.FC = () => {
       const blob = await api.generatePdf(formAnswers);
       setPdfBlob(blob);
 
-      // Auto-download
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "form3520_filled.pdf";
+      const rawName = String(answers["taxpayer_name"] || "client").trim();
+      const safeName = rawName.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+      const today = new Date().toISOString().split("T")[0];
+      a.download = `Form3520_${safeName}_${today}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
 
@@ -224,63 +232,75 @@ const Interview: React.FC = () => {
     setAnswers({});
     setPartsApplicable({ part_i: false, part_ii: false, part_iii: false, part_iv: false });
     setStepIndex(0);
+    setDirection("forward");
     setSessionWarnings([]);
     setPdfBlob(null);
     setGenerateError(null);
     setPhase("interview");
   }, []);
 
+  /* ── Loading ── */
   if (phase === "loading") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-3" />
-          <p className="text-gray-600 text-sm">Loading questions…</p>
+          <div className="relative w-12 h-12 mx-auto mb-4">
+            <div className="absolute inset-0 rounded-full border-4 border-blue-100" />
+            <div className="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin" />
+          </div>
+          <p className="text-gray-500 text-sm font-medium">Loading your interview…</p>
         </div>
       </div>
     );
   }
 
+  /* ── Error ── */
   if (phase === "error") {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="max-w-md bg-white rounded-2xl shadow-md p-8 text-center">
-          <p className="text-red-600 font-semibold mb-2">Could not connect to the server</p>
-          <p className="text-gray-600 text-sm mb-5">
-            Make sure the backend is running at http://localhost:8001
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-lg ring-1 ring-gray-100 p-10 text-center animate-fade-up">
+          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <p className="text-gray-900 font-semibold mb-1.5">Could not connect</p>
+          <p className="text-gray-500 text-sm mb-6">
+            Make sure the backend is running at http://localhost:8000
           </p>
           <button
             onClick={() => {
               setPhase("loading");
               api
                 .getQuestions()
-                .then((qs) => {
-                  setAllQuestions(qs);
-                  setPhase("interview");
-                })
+                .then((qs) => { setAllQuestions(qs); setPhase("interview"); })
                 .catch(() => setPhase("error"));
             }}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2.5 rounded-lg transition-colors"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-xl transition-colors"
           >
-            Retry
+            Try again
           </button>
         </div>
       </div>
     );
   }
 
+  /* ── Part Router ── */
   if (phase === "part-router") {
     return (
-      <div className="min-h-screen bg-gray-50 pt-16">
-        <PartRouter partsApplicable={partsApplicable} onBegin={handlePartRouterBegin} />
+      <div className="min-h-screen bg-slate-50 pt-4">
+        <div className="animate-fade-up">
+          <PartRouter partsApplicable={partsApplicable} onBegin={handlePartRouterBegin} />
+        </div>
       </div>
     );
   }
 
+  /* ── Review ── */
   if (phase === "review") {
     const formAnswers = buildFormAnswers(answers, partsApplicable);
     return (
-      <div className="min-h-screen bg-gray-50 pt-4">
+      <div className="min-h-screen bg-slate-50 pt-4">
         {generateError && (
           <div className="max-w-2xl mx-auto px-4 mb-4">
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
@@ -288,41 +308,44 @@ const Interview: React.FC = () => {
             </div>
           </div>
         )}
-        <ReviewSummary
-          answers={formAnswers}
-          warnings={sessionWarnings}
-          onEdit={handleEdit}
-          onGenerate={handleGenerate}
-          isGenerating={isGenerating}
-        />
+        <div className="animate-fade-up">
+          <ReviewSummary
+            answers={formAnswers}
+            warnings={sessionWarnings}
+            onEdit={handleEdit}
+            onGenerate={handleGenerate}
+            isGenerating={isGenerating}
+          />
+        </div>
       </div>
     );
   }
 
+  /* ── Complete ── */
   if (phase === "complete" && pdfBlob) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <CompletePage
-          pdfBlob={pdfBlob}
-          sessionWarnings={sessionWarnings}
-          onRestart={handleRestart}
-        />
-      </div>
+      <CompletePage
+        pdfBlob={pdfBlob}
+        sessionWarnings={sessionWarnings}
+        onRestart={handleRestart}
+      />
     );
   }
 
-  // Interview phase
-  if (!currentQuestion) {
-    return null;
-  }
+  /* ── Interview ── */
+  if (!currentQuestion) return null;
 
   const partLabel = PART_LABELS[currentQuestion.part] ?? `Part ${currentQuestion.part}`;
   const totalSteps = activeQuestions.length;
 
   return (
-    <div className="min-h-screen bg-gray-50 pt-16 pb-8 px-4">
+    <div className="min-h-screen bg-slate-50 pt-16 pb-10 px-4">
       <ProgressBar current={stepIndex + 1} total={totalSteps} partLabel={partLabel} />
-      <div className="mt-8">
+      {/* key on wrapper triggers slide animation whenever step changes */}
+      <div
+        key={stepIndex}
+        className={`mt-10 ${direction === "forward" ? "animate-slide-right" : "animate-slide-left"}`}
+      >
         <QuestionCard
           question={currentQuestion}
           value={answers[currentQuestion.id]}

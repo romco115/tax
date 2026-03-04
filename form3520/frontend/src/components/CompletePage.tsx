@@ -14,35 +14,54 @@ function downloadBlob(blob: Blob, filename: string) {
 }
 
 const CompletePage: React.FC<CompletePageProps> = ({ pdfBlob, sessionWarnings, onRestart }) => {
+  const uniqueWarnings = [...new Set(sessionWarnings)];
+
   return (
-    <div className="max-w-2xl mx-auto px-4 py-12">
-      <div className="bg-green-50 border border-green-200 rounded-2xl p-8 mb-6 text-center">
-        <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
+    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex flex-col items-center justify-start pt-12 px-4 pb-16">
+      {/* Success card */}
+      <div className="max-w-lg w-full bg-white rounded-2xl shadow-xl ring-1 ring-green-100 p-10 text-center mb-6 animate-bounce-in">
+        {/* Animated checkmark */}
+        <div className="relative w-20 h-20 mx-auto mb-6">
+          <div className="absolute inset-0 rounded-full bg-green-500 animate-pulse-ring opacity-60" />
+          <div className="relative w-20 h-20 bg-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-200/60">
+            <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
         </div>
-        <h2 className="text-2xl font-semibold text-green-800 mb-2">Form 3520 Generated!</h2>
-        <p className="text-green-700 text-sm mb-5">
-          Your completed Form 3520 PDF has been downloaded. Check your Downloads folder.
+
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Form 3520 Generated!</h2>
+        <p className="text-gray-500 text-sm mb-7 leading-relaxed">
+          Your completed PDF has been downloaded automatically.
+          Check your <strong className="text-gray-700">Downloads</strong> folder.
         </p>
-        <button
-          onClick={() => downloadBlob(pdfBlob, "form3520_filled.pdf")}
-          className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-2.5 rounded-lg transition-colors"
-        >
-          Download Again
-        </button>
+
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <button
+            onClick={() => downloadBlob(pdfBlob, "form3520_filled.pdf")}
+            className="inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 active:scale-[0.98] text-white font-semibold px-6 py-3 rounded-xl transition-all duration-150 shadow-sm"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Download Again
+          </button>
+        </div>
       </div>
 
-      {sessionWarnings.length > 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-5 mb-6">
-          <p className="font-semibold text-yellow-800 text-sm mb-3">
-            IRS Notices from Your Interview
-          </p>
-          <ul className="space-y-2">
-            {[...new Set(sessionWarnings)].map((w, i) => (
-              <li key={i} className="text-yellow-700 text-sm flex gap-2">
-                <span className="flex-shrink-0">•</span>
+      {/* IRS warnings */}
+      {uniqueWarnings.length > 0 && (
+        <div className="max-w-lg w-full bg-amber-50 border border-amber-200 rounded-xl p-5 mb-4 animate-fade-up">
+          <div className="flex items-center gap-2 mb-3">
+            <svg className="w-4 h-4 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <p className="font-semibold text-amber-800 text-sm">IRS Notices from Your Interview</p>
+          </div>
+          <ul className="space-y-1.5">
+            {uniqueWarnings.map((w, i) => (
+              <li key={i} className="text-amber-700 text-sm flex gap-2">
+                <span className="flex-shrink-0 mt-0.5">•</span>
                 {w}
               </li>
             ))}
@@ -50,25 +69,22 @@ const CompletePage: React.FC<CompletePageProps> = ({ pdfBlob, sessionWarnings, o
         </div>
       )}
 
-      <div className="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-6">
-        <p className="text-gray-600 text-sm leading-relaxed">
+      {/* Disclaimer */}
+      <div className="max-w-lg w-full bg-gray-50 border border-gray-200 rounded-xl p-4 mb-6 animate-fade-up">
+        <p className="text-gray-500 text-xs leading-relaxed">
           <strong className="text-gray-700">Disclaimer:</strong> This tool helps organize your
           information for IRS Form 3520. It is not legal or tax advice. Review the completed form
-          carefully and consult a qualified tax professional before filing with the IRS. Penalties
-          for incorrect or late filing of Form 3520 can be severe. The IRS instructions for Form
-          3520 are available at{" "}
-          <span className="text-blue-600">www.irs.gov/Form3520</span>.
+          carefully and consult a qualified tax professional before filing. Penalties for incorrect
+          or late filing can be severe.
         </p>
       </div>
 
-      <div className="text-center">
-        <button
-          onClick={onRestart}
-          className="text-blue-600 hover:underline text-sm"
-        >
-          Start a new Form 3520
-        </button>
-      </div>
+      <button
+        onClick={onRestart}
+        className="text-sm text-gray-400 hover:text-blue-600 transition-colors animate-fade-up"
+      >
+        Start a new Form 3520
+      </button>
     </div>
   );
 };
