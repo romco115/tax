@@ -51,4 +51,5 @@ export interface ExtractedIdData {
   issued_by: string | null;
   country: string | null;
   address: string | null;
+  sex: string | null;
 }

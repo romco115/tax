@@ -21,6 +21,7 @@ const FIELD_LABELS: Array<{ key: keyof ExtractedIdData; label: string }> = [
   { key: "issued_by",   label: "Issued by" },
   { key: "country",     label: "Country" },
   { key: "address",     label: "Address" },
+  { key: "sex",         label: "Sex" },
 ];
 
 interface FileEntry {

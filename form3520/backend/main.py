@@ -1,5 +1,10 @@
 from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import io
+import json
 import os
 import re
 import time
@@ -37,6 +42,10 @@ def download_form(url: str, path: str, label: str) -> None:
 async def lifespan(app: FastAPI):
     download_form(IRS_3520_URL, PDF_3520_PATH, "Form 3520")
     download_form(IRS_W7_URL,   PDF_W7_PATH,   "Form W-7")
+    if os.environ.get("GEMINI_API_KEY"):
+        print("✓ GEMINI_API_KEY detected — AI-powered ID extraction enabled")
+    else:
+        print("⚠ GEMINI_API_KEY not set — ID extraction will not work")
     yield
 
 
@@ -127,190 +136,108 @@ async def generate_w7_pdf(answers: dict) -> FileResponse:
 
 @app.post("/api/w7/extract-id")
 async def extract_id(files: list[UploadFile] = File(...)) -> dict:
-    """
-    Accept one or more images/PDFs of a government-issued ID, run OCR on
-    each, merge the results, and return structured fields to pre-fill W-7.
-    """
-    try:
-        import pytesseract
-        from PIL import Image, ImageEnhance, ImageFilter
-    except ImportError:
+    """Send uploaded ID images/PDFs directly to Gemini for data extraction."""
+    gemini_key = os.environ.get("GEMINI_API_KEY")
+    if not gemini_key:
         raise HTTPException(
             status_code=503,
-            detail="OCR dependencies not installed. Run: pip install pytesseract Pillow",
+            detail="GEMINI_API_KEY environment variable is not set.",
         )
 
     if not files:
         raise HTTPException(status_code=422, detail="At least one file is required.")
 
-    all_pages: list[Image.Image] = []
-
+    file_parts: list[dict] = []
     for upload in files:
         contents = await upload.read()
         filename = (upload.filename or "").lower()
-        is_pdf = upload.content_type == "application/pdf" or filename.endswith(".pdf")
 
-        if is_pdf:
-            try:
-                from pdf2image import convert_from_bytes
-                pages = convert_from_bytes(contents, dpi=200)
-                all_pages.extend(pages)
-            except Exception as e:
-                raise HTTPException(status_code=422, detail=f"Could not convert PDF '{upload.filename}': {e}")
-        else:
-            try:
-                img = Image.open(io.BytesIO(contents))
-                all_pages.append(img)
-            except Exception:
-                raise HTTPException(status_code=422, detail=f"Could not read image '{upload.filename}'.")
+        mime = upload.content_type or "application/octet-stream"
+        if filename.endswith(".pdf"):
+            mime = "application/pdf"
+        elif filename.endswith((".jpg", ".jpeg")):
+            mime = "image/jpeg"
+        elif filename.endswith(".png"):
+            mime = "image/png"
+        elif filename.endswith(".webp"):
+            mime = "image/webp"
 
-    if not all_pages:
-        raise HTTPException(status_code=422, detail="No readable pages found in the uploaded files.")
+        file_parts.append({"mime_type": mime, "data": contents})
 
-    # Run OCR on every page, collect all text
-    combined_lines: list[str] = []
-    combined_raw = ""
-    for img in all_pages:
-        img = img.convert("L")
-        img = img.filter(ImageFilter.SHARPEN)
-        img = ImageEnhance.Contrast(img).enhance(2.0)
-        raw = pytesseract.image_to_string(img, config="--psm 6")
-        combined_raw += "\n" + raw
-        combined_lines.extend(ln.strip() for ln in raw.splitlines() if ln.strip())
+    return await _extract_with_gemini(file_parts, gemini_key)
 
-    # Parse and merge: first non-null value per field wins
-    result = _parse_id_text(combined_lines, combined_raw)
+
+# ─── ID Extraction Helpers ────────────────────────────────────────────────────
+
+_GEMINI_PROMPT = """\
+Analyze the provided government-issued identification document image(s) \
+(passport, driver's license, or national ID card) and extract the following \
+fields. Return ONLY a valid JSON object with these exact keys. \
+Use null for any field you cannot confidently determine.
+
+{
+  "first_name":  "given / first name (string or null)",
+  "last_name":   "surname / last name (string or null)",
+  "dob":         "date of birth in MM/DD/YYYY format (string or null)",
+  "doc_number":  "document number such as passport number (string or null)",
+  "doc_expiry":  "expiration date in MM/DD/YYYY format (string or null)",
+  "doc_type":    "EXACTLY one of: Passport | Driver's license / State I.D. | USCIS documentation | Other",
+  "issued_by":   "issuing country or authority (string or null)",
+  "country":     "nationality / citizenship — use standard English country name (string or null)",
+  "address":     "full address if visible (string or null)",
+  "sex":         "Male or Female (string or null)"
+}
+
+Rules:
+- Dates MUST use MM/DD/YYYY format.
+- doc_type MUST be exactly one of the four values listed above, or null.
+- If there is a MRZ (Machine Readable Zone), use it to cross-verify other fields.
+- Return ONLY the JSON object. No markdown, no explanation, no extra text."""
+
+_EXTRACTED_FIELDS = [
+    "first_name", "last_name", "dob", "doc_number", "doc_expiry",
+    "doc_type", "issued_by", "country", "address", "sex",
+]
+
+
+async def _extract_with_gemini(file_parts: list[dict], api_key: str) -> dict:
+    """Send files directly to Gemini and return structured ID fields."""
+    import google.generativeai as genai
+
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("gemini-2.5-flash")
+
+    response = await model.generate_content_async(
+        [_GEMINI_PROMPT, *file_parts],
+        generation_config=genai.GenerationConfig(
+            response_mime_type="application/json",
+            temperature=0.1,
+        ),
+    )
+
+    parsed = json.loads(response.text.strip())
+    result = {k: parsed.get(k) for k in _EXTRACTED_FIELDS}
+
+    if result.get("country"):
+        result["country"] = _best_country_match(result["country"])
+    if result.get("issued_by"):
+        matched = _best_country_match(result["issued_by"])
+        if matched != result["issued_by"]:
+            result["issued_by"] = matched
+
     return result
 
 
-def _parse_id_text(lines: list[str], raw: str) -> dict:
-    """Extract structured fields from OCR text of a government ID."""
-    extracted: dict[str, str | None] = {
-        "first_name":   None,
-        "last_name":    None,
-        "dob":          None,
-        "doc_number":   None,
-        "doc_expiry":   None,
-        "doc_type":     None,
-        "issued_by":    None,
-        "country":      None,
-        "address":      None,
-    }
-
-    raw_upper = raw.upper()
-
-    # ── Document type ────────────────────────────────────────────────────────
-    if "PASSPORT" in raw_upper:
-        extracted["doc_type"] = "Passport"
-    elif "DRIVER" in raw_upper or "DRIVING" in raw_upper or "LICENSE" in raw_upper:
-        extracted["doc_type"] = "Driver's license / State I.D."
-    elif "NATIONAL" in raw_upper and "ID" in raw_upper:
-        extracted["doc_type"] = "USCIS documentation"
-
-    # ── Date patterns ────────────────────────────────────────────────────────
-    date_patterns = [
-        r"\b(\d{2})[/.\-](\d{2})[/.\-](\d{4})\b",   # DD/MM/YYYY or MM/DD/YYYY
-        r"\b(\d{4})[/.\-](\d{2})[/.\-](\d{2})\b",   # YYYY-MM-DD
-        r"\b(\d{2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{4})\b",
-    ]
-
-    found_dates: list[str] = []
-    for pattern in date_patterns:
-        for m in re.finditer(pattern, raw_upper):
-            found_dates.append(m.group(0))
-
-    # Match dates to labels
-    for i, line in enumerate(lines):
-        lu = line.upper()
-        context = " ".join(lines[max(0, i-1):i+2]).upper()
-
-        if any(kw in context for kw in ["BIRTH", "DOB", "BORN", "DATE OF BIRTH", "BIRTHDATE"]):
-            for d in found_dates:
-                if d in context.upper():
-                    extracted["dob"] = _normalize_date(d)
-                    break
-
-        if any(kw in context for kw in ["EXPIR", "EXP.", "VALID UNTIL", "EXPIRY", "EXPIRES"]):
-            for d in found_dates:
-                if d in context.upper():
-                    if extracted["doc_expiry"] is None:
-                        extracted["doc_expiry"] = _normalize_date(d)
-                    break
-
-    # ── Document number ──────────────────────────────────────────────────────
-    doc_num_pattern = r"\b([A-Z]{1,3}\d{6,9}|\d{8,9}|[A-Z0-9]{8,12})\b"
-    for i, line in enumerate(lines):
-        context = " ".join(lines[max(0, i-1):i+2]).upper()
-        if any(kw in context for kw in ["NO.", "NUMBER", "PASSPORT", "LICENSE", "ID NO"]):
-            m = re.search(doc_num_pattern, line.upper())
-            if m and extracted["doc_number"] is None:
-                extracted["doc_number"] = m.group(1)
-
-    # ── Names ────────────────────────────────────────────────────────────────
-    for i, line in enumerate(lines):
-        lu = line.upper()
-        next_line = lines[i + 1] if i + 1 < len(lines) else ""
-
-        if any(lu.startswith(kw) for kw in ["SURNAME", "LAST NAME", "APELLIDO", "NOM"]):
-            candidate = next_line or re.sub(r"^(SURNAME|LAST NAME|APELLIDO|NOM)[:\s]*", "", line, flags=re.I).strip()
-            if candidate and extracted["last_name"] is None:
-                extracted["last_name"] = candidate.title()
-
-        if any(lu.startswith(kw) for kw in ["GIVEN NAME", "FIRST NAME", "GIVEN NAMES", "PRENOM", "NOMBRE"]):
-            candidate = next_line or re.sub(r"^(GIVEN NAME|FIRST NAME|GIVEN NAMES|PRENOM|NOMBRE)[S]?[:\s]*", "", line, flags=re.I).strip()
-            if candidate and extracted["first_name"] is None:
-                extracted["first_name"] = candidate.title().split()[0] if candidate else None
-
-    # ── Country / issuing authority ──────────────────────────────────────────
-    for i, line in enumerate(lines):
-        lu = line.upper()
-        if any(kw in lu for kw in ["NATIONALITY", "CITIZENSHIP", "COUNTRY OF"]):
-            next_line = lines[i + 1] if i + 1 < len(lines) else ""
-            candidate = re.sub(r"(NATIONALITY|CITIZENSHIP|COUNTRY OF)[:\s]*", "", line, flags=re.I).strip()
-            if not candidate and next_line:
-                candidate = next_line.strip()
-            if candidate:
-                extracted["country"] = candidate.title()
-                extracted["issued_by"] = candidate.title()
-                break
-
-    # ── Address (driver's licenses) ──────────────────────────────────────────
-    for i, line in enumerate(lines):
-        if re.search(r"\d+\s+\w+\s+(ST|AVE|BLVD|DR|RD|LN|WAY|CT|PL|ROAD|STREET|AVENUE)", line.upper()):
-            extracted["address"] = line.strip()
-            break
-
-    return extracted
-
-
-def _normalize_date(raw: str) -> str:
-    """Attempt to normalize a date string to MM/DD/YYYY."""
-    raw = raw.strip()
-    month_abbrs = {
-        "JAN": "01", "FEB": "02", "MAR": "03", "APR": "04",
-        "MAY": "05", "JUN": "06", "JUL": "07", "AUG": "08",
-        "SEP": "09", "OCT": "10", "NOV": "11", "DEC": "12",
-    }
-
-    # DD MON YYYY
-    m = re.match(r"(\d{2})\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{4})", raw.upper())
-    if m:
-        return f"{month_abbrs[m.group(2)]}/{m.group(1)}/{m.group(3)}"
-
-    # YYYY-MM-DD
-    m = re.match(r"(\d{4})[/.\-](\d{2})[/.\-](\d{2})", raw)
-    if m:
-        return f"{m.group(2)}/{m.group(3)}/{m.group(1)}"
-
-    # DD/MM/YYYY — if day > 12 it must be DD/MM
-    m = re.match(r"(\d{2})[/.\-](\d{2})[/.\-](\d{4})", raw)
-    if m:
-        a, b, year = m.group(1), m.group(2), m.group(3)
-        if int(a) > 12:      # definitely day first
-            return f"{b}/{a}/{year}"
-        return f"{a}/{b}/{year}"  # keep as-is (assume MM/DD)
-
-    return raw
+def _best_country_match(name: str) -> str:
+    """Return the closest match from the W7 countries list, or the original."""
+    lower = name.lower().strip()
+    for c in w7_questions_module.COUNTRIES:
+        if c.lower() == lower:
+            return c
+    for c in w7_questions_module.COUNTRIES:
+        if lower in c.lower() or c.lower() in lower:
+            return c
+    return name
 
 
 # ─── SPA static files ────────────────────────────────────────────────────────

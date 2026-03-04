@@ -29,6 +29,7 @@ function mapExtractedToAnswers(data: ExtractedIdData): Record<string, unknown> {
     ans["country_of_birth"]   = data.country;
     ans["country_citizenship"] = data.country;
   }
+  if (data.sex)       ans["sex"]       = data.sex;
   return ans;
 }
 
