@@ -170,33 +170,44 @@ async def extract_id(files: list[UploadFile] = File(...)) -> dict:
 # ─── ID Extraction Helpers ────────────────────────────────────────────────────
 
 _GEMINI_PROMPT = """\
-Analyze the provided government-issued identification document image(s) \
-(passport, driver's license, or national ID card) and extract the following \
-fields. Return ONLY a valid JSON object with these exact keys. \
+You may receive one or more images of government-issued documents. These can \
+include any combination of: a passport, a driver's license or national ID \
+card, and/or a U.S. visa (typically a sticker or page inside a passport).
+
+Analyze ALL provided images together and extract the following fields. \
+Return ONLY a valid JSON object with these exact keys. \
 Use null for any field you cannot confidently determine.
 
 {
   "first_name":  "given / first name (string or null)",
   "last_name":   "surname / last name (string or null)",
-  "dob":         "date of birth in MM/DD/YYYY format (string or null)",
-  "doc_number":  "document number such as passport number (string or null)",
-  "doc_expiry":  "expiration date in MM/DD/YYYY format (string or null)",
+  "dob":         "date of birth in MMDDYYYY format (string or null)",
+  "doc_number":  "primary ID document number such as passport number (string or null)",
+  "doc_expiry":  "primary ID expiration date in MMDDYYYY format (string or null)",
   "doc_type":    "EXACTLY one of: Passport | Driver's license / State I.D. | USCIS documentation | Other",
-  "issued_by":   "issuing country or authority (string or null)",
+  "issued_by":   "issuing country or authority of the primary ID (string or null)",
   "country":     "nationality / citizenship — use standard English country name (string or null)",
-  "address":     "full address if visible (string or null)",
-  "sex":         "Male or Female (string or null)"
+  "address":     "full address if visible on any document (string or null)",
+  "sex":         "Male or Female (string or null)",
+  "foreign_tin": "foreign tax identification number if visible on any document (string or null)",
+  "visa_info":   "U.S. visa details — see format rules below (string or null)"
 }
 
 Rules:
-- Dates MUST use MM/DD/YYYY format.
+- Dates MUST use MMDDYYYY format (no slashes, no dashes — 8 digits).
 - doc_type MUST be exactly one of the four values listed above, or null.
 - If there is a MRZ (Machine Readable Zone), use it to cross-verify other fields.
+- visa_info: If a U.S. visa is present in ANY of the images, extract the visa \
+classification (e.g. E2, F1, B1/B2, H1B), the red control number printed on \
+the visa (typically ~13 digits), and the visa expiration date. Combine them \
+into a SINGLE string in this EXACT format: "TYPE CONTROL_NUMBER MM/DD/YYYY". \
+Example: "E2 2021268663005 11/29/2023". Use null if no U.S. visa is found.
 - Return ONLY the JSON object. No markdown, no explanation, no extra text."""
 
 _EXTRACTED_FIELDS = [
     "first_name", "last_name", "dob", "doc_number", "doc_expiry",
     "doc_type", "issued_by", "country", "address", "sex",
+    "foreign_tin", "visa_info",
 ]
 
 

@@ -69,6 +69,14 @@ def fill_form(answers: dict, output_path: str) -> None:
 
 def _flatten_answers(answers: dict) -> dict:
     flat: dict = {}
+    na = "N/A"
+
+    def _t(key: str) -> str:
+        """Return the answer for *key*, falling back to 'N/A' when empty."""
+        v = answers.get(key)
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return na
+        return str(v)
 
     app_type = str(answers.get("application_type", "")).lower()
     if "new" in app_type:
@@ -87,25 +95,25 @@ def _flatten_answers(answers: dict) -> dict:
         if letter in reason_map:
             flat[reason_map[letter]] = True
 
-    flat["first_name"]  = answers.get("first_name", "")
-    flat["middle_name"] = answers.get("middle_name", "")
-    flat["last_name"]   = answers.get("last_name", "")
+    flat["first_name"]  = _t("first_name")
+    flat["middle_name"] = _t("middle_name")
+    flat["last_name"]   = _t("last_name")
 
     if answers.get("name_different_at_birth") == "yes":
-        flat["birth_first_name"]  = answers.get("birth_first_name", "")
-        flat["birth_middle_name"] = answers.get("birth_middle_name", "")
-        flat["birth_last_name"]   = answers.get("birth_last_name", "")
+        flat["birth_first_name"]  = _t("birth_first_name")
+        flat["birth_middle_name"] = _t("birth_middle_name")
+        flat["birth_last_name"]   = _t("birth_last_name")
 
-    flat["mailing_street"]       = answers.get("mailing_street", "")
-    flat["mailing_city_country"] = answers.get("mailing_city_country", "")
+    flat["mailing_street"]       = _t("mailing_street")
+    flat["mailing_city_country"] = _t("mailing_city_country")
 
     if answers.get("has_foreign_address") == "yes":
-        flat["foreign_street"]       = answers.get("foreign_street", "")
-        flat["foreign_city_country"] = answers.get("foreign_city_country", "")
+        flat["foreign_street"]       = _t("foreign_street")
+        flat["foreign_city_country"] = _t("foreign_city_country")
 
-    flat["dob"]              = answers.get("dob", "")
-    flat["country_of_birth"] = answers.get("country_of_birth", "")
-    flat["city_of_birth"]    = answers.get("city_of_birth", "")
+    flat["dob"]              = _t("dob")
+    flat["country_of_birth"] = _t("country_of_birth")
+    flat["city_of_birth"]    = _t("city_of_birth")
 
     sex = str(answers.get("sex", "")).lower()
     if sex == "male":
@@ -113,13 +121,13 @@ def _flatten_answers(answers: dict) -> dict:
     elif sex == "female":
         flat["sex_female"] = True
 
-    flat["country_citizenship"] = answers.get("country_citizenship", "")
+    flat["country_citizenship"] = _t("country_citizenship")
 
     if answers.get("has_foreign_tin") == "yes":
-        flat["foreign_tin"] = answers.get("foreign_tin", "")
+        flat["foreign_tin"] = _t("foreign_tin")
 
     if answers.get("has_us_visa") == "yes":
-        flat["visa_type"] = answers.get("visa_type", "")
+        flat["visa_type"] = _t("visa_type")
 
     doc_type = str(answers.get("doc_type", "")).lower()
     if "passport" in doc_type:
@@ -132,9 +140,9 @@ def _flatten_answers(answers: dict) -> dict:
         flat["doc_other_cb"]   = True
         flat["doc_other_desc"] = answers.get("doc_type", "")
 
-    flat["doc_issued_by"] = answers.get("doc_issued_by", "")
-    flat["doc_number"]    = answers.get("doc_number", "")
-    flat["doc_expiry"]    = answers.get("doc_expiry", "")
+    flat["doc_issued_by"] = _t("doc_issued_by")
+    flat["doc_number"]    = _t("doc_number")
+    flat["doc_expiry"]    = _t("doc_expiry")
 
     prev = str(answers.get("prev_tin", "")).lower()
     if "yes" in prev:
@@ -147,6 +155,6 @@ def _flatten_answers(answers: dict) -> dict:
     else:
         flat["prev_tin_no"] = True
 
-    flat["applicant_phone"] = answers.get("applicant_phone", "")
+    flat["applicant_phone"] = _t("applicant_phone")
 
     return flat

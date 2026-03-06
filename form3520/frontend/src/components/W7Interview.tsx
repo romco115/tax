@@ -29,7 +29,15 @@ function mapExtractedToAnswers(data: ExtractedIdData): Record<string, unknown> {
     ans["country_of_birth"]   = data.country;
     ans["country_citizenship"] = data.country;
   }
-  if (data.sex)       ans["sex"]       = data.sex;
+  if (data.sex)         ans["sex"]             = data.sex;
+  if (data.foreign_tin) {
+    ans["has_foreign_tin"] = "yes";
+    ans["foreign_tin"]     = data.foreign_tin;
+  }
+  if (data.visa_info) {
+    ans["has_us_visa"] = "yes";
+    ans["visa_type"]   = data.visa_info;
+  }
   return ans;
 }
 
@@ -67,6 +75,31 @@ const W7Interview: React.FC = () => {
   const handleIdSkip = useCallback(() => {
     setDirection("forward");
     setPhase("interview");
+  }, []);
+
+  const handleQuickGenerate = useCallback(async (extracted: ExtractedIdData) => {
+    const mapped = mapExtractedToAnswers(extracted);
+    setAnswers(mapped);
+    setGenerateError(null);
+    try {
+      const blob = await api.generateW7Pdf(mapped);
+      setPdfBlob(blob);
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const first = String(mapped["first_name"] || "").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+      const last  = String(mapped["last_name"]  || "").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+      const today = new Date().toISOString().split("T")[0];
+      a.download = `FormW7_${first}_${last}_${today}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      setDirection("forward");
+      setPhase("complete");
+    } catch {
+      throw new Error("PDF generation failed");
+    }
   }, []);
 
   const handleAnswer = useCallback(
@@ -197,7 +230,7 @@ const W7Interview: React.FC = () => {
       <div className="min-h-screen bg-slate-50 pt-16 pb-10 px-4">
         <ProgressBar current={0} total={allQuestions.length} partLabel="W-7 — Scan your ID" />
         <div className="mt-10 animate-fade-up">
-          <IdUploadCard onConfirm={handleIdConfirm} onSkip={handleIdSkip} />
+          <IdUploadCard onConfirm={handleIdConfirm} onSkip={handleIdSkip} onQuickGenerate={handleQuickGenerate} />
         </div>
       </div>
     );

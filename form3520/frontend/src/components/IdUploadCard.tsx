@@ -5,6 +5,7 @@ import type { ExtractedIdData } from "../types/w7";
 interface IdUploadCardProps {
   onConfirm: (extracted: ExtractedIdData) => void;
   onSkip: () => void;
+  onQuickGenerate: (extracted: ExtractedIdData) => Promise<void>;
 }
 
 type UploadPhase = "idle" | "selected" | "extracting" | "done" | "error";
@@ -22,6 +23,8 @@ const FIELD_LABELS: Array<{ key: keyof ExtractedIdData; label: string }> = [
   { key: "country",     label: "Country" },
   { key: "address",     label: "Address" },
   { key: "sex",         label: "Sex" },
+  { key: "foreign_tin", label: "Foreign tax ID" },
+  { key: "visa_info",   label: "U.S. visa" },
 ];
 
 interface FileEntry {
@@ -47,12 +50,13 @@ function revokeEntries(entries: FileEntry[]) {
   }
 }
 
-const IdUploadCard: React.FC<IdUploadCardProps> = ({ onConfirm, onSkip }) => {
+const IdUploadCard: React.FC<IdUploadCardProps> = ({ onConfirm, onSkip, onQuickGenerate }) => {
   const [phase, setPhase]         = useState<UploadPhase>("idle");
   const [entries, setEntries]     = useState<FileEntry[]>([]);
   const [extracted, setExtracted] = useState<ExtractedIdData | null>(null);
   const [errorMsg, setErrorMsg]   = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [quickGenerating, setQuickGenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = useCallback((incoming: File[]) => {
@@ -319,16 +323,18 @@ const IdUploadCard: React.FC<IdUploadCardProps> = ({ onConfirm, onSkip }) => {
                 )}
               </div>
 
-              <p className="text-xs text-gray-400 mb-5">
-                These values will be pre-filled in the form. You can review and correct each one as you go.
-              </p>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-5">
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  <span className="font-semibold">Note:</span> Some fields (application type, reason for applying, mailing address, etc.) cannot be extracted from your documents and will appear as &quot;N/A&quot; on the PDF. Use &quot;Continue to form&quot; to fill them in manually.
+                </p>
+              </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 mb-3">
                 <button
                   onClick={() => onConfirm(extracted)}
                   className="flex-1 bg-violet-600 hover:bg-violet-700 active:scale-[0.98] text-white font-semibold py-2.5 rounded-xl transition-all duration-150 text-sm shadow-lg shadow-violet-200/60"
                 >
-                  Use this data →
+                  Continue to form →
                 </button>
                 <button
                   onClick={handleReset}
@@ -337,6 +343,29 @@ const IdUploadCard: React.FC<IdUploadCardProps> = ({ onConfirm, onSkip }) => {
                   Re-upload
                 </button>
               </div>
+
+              <button
+                onClick={async () => {
+                  setQuickGenerating(true);
+                  try { await onQuickGenerate(extracted); } finally { setQuickGenerating(false); }
+                }}
+                disabled={quickGenerating}
+                className="w-full border border-violet-200 bg-violet-50 hover:bg-violet-100 disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.98] text-violet-700 font-semibold py-2.5 rounded-xl transition-all duration-150 text-sm flex items-center justify-center gap-2"
+              >
+                {quickGenerating ? (
+                  <>
+                    <div className="w-4 h-4 rounded-full border-2 border-violet-400 border-t-transparent animate-spin" />
+                    Generating PDF…
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Generate PDF now (missing fields will be N/A)
+                  </>
+                )}
+              </button>
             </div>
           )}
 

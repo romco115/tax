@@ -52,4 +52,6 @@ export interface ExtractedIdData {
   country: string | null;
   address: string | null;
   sex: string | null;
+  foreign_tin: string | null;
+  visa_info: string | null;
 }
